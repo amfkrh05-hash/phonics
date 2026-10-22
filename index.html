@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>알파벳 파닉스 퀴즈 게임</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Jua&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Nunito', 'Jua', sans-serif;
+    }
+    .bounce-animated {
+      animation: bounce 0.6s infinite alternate;
+    }
+    @keyframes bounce {
+      from { transform: translateY(0); }
+      to { transform: translateY(-10px); }
+    }
+    .pop-in {
+      animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes popIn {
+      0% { transform: scale(0.8); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+  </style>
+</head>
+<body class="bg-amber-50 min-h-screen text-slate-800 flex flex-col items-center justify-center p-4">
+
+  <!-- 메인 게임 컨테이너 -->
+  <div class="bg-white rounded-3xl shadow-xl border-4 border-amber-300 w-full max-w-2xl p-6 sm:p-8 relative overflow-hidden">
+    
+    <!-- 헤더 영역 -->
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl sm:text-3xl font-extrabold text-amber-500 tracking-wide flex items-center gap-2">
+        <i class="fa-solid fa-shapes text-amber-400"></i> 알파벳 음가 퀴즈
+      </h1>
+      <button onclick="openStudyModal()" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-sm font-bold px-3 py-2 rounded-xl transition flex items-center gap-1.5">
+        <i class="fa-solid fa-book-open"></i> 알파벳 공부방
+      </button>
+    </div>
+
+    <!-- 점수 및 상태 표시판 -->
+    <div class="grid grid-cols-3 gap-3 mb-6 bg-amber-100/60 p-3 rounded-2xl border border-amber-200 text-center">
+      <div>
+        <span class="text-xs text-amber-700 font-bold uppercase block">점수</span>
+        <span id="score-val" class="text-2xl font-black text-amber-600">0</span>
+      </div>
+      <div>
+        <span class="text-xs text-amber-700 font-bold uppercase block">연속 정답</span>
+        <span id="streak-val" class="text-2xl font-black text-orange-500">🔥 0</span>
+      </div>
+      <div>
+        <span class="text-xs text-amber-700 font-bold uppercase block">남은 문제</span>
+        <span id="round-val" class="text-2xl font-black text-indigo-600">10</span>
+      </div>
+    </div>
+
+    <!-- 게임 모드 선택 탭 -->
+    <div class="flex bg-slate-100 p-1.5 rounded-2xl mb-6">
+      <button id="mode-sound-btn" onclick="setMode('sound')" class="flex-1 py-2 rounded-xl font-extrabold text-sm transition bg-white text-indigo-600 shadow-sm">
+        🔊 소리 듣고 맞추기
+      </button>
+      <button id="mode-word-btn" onclick="setMode('word')" class="flex-1 py-2 rounded-xl font-extrabold text-sm transition text-slate-500 hover:text-slate-700">
+        🔤 단어의 첫 소리 맞추기
+      </button>
+    </div>
+
+    <!-- 문제 카드 영역 -->
+    <div id="quiz-card" class="bg-gradient-to-b from-indigo-50 to-amber-50/30 rounded-2xl p-6 border-2 border-indigo-100 text-center mb-6 pop-in">
+      
+      <!-- [모드 1] 소리 듣고 맞추기 -->
+      <div id="sound-question-view" class="py-4">
+        <p class="text-slate-600 font-bold mb-4">버튼을 눌러 알파벳 소리를 들어보세요!</p>
+        <button id="speaker-btn" onclick="playCurrentQuestionSound()" class="w-24 h-24 bg-indigo-500 hover:bg-indigo-600 text-white rounded-full shadow-lg hover:shadow-indigo-200 hover:scale-105 active:scale-95 transition flex items-center justify-center mx-auto text-4xl">
+          <i class="fa-solid fa-volume-high bounce-animated"></i>
+        </button>
+      </div>
+
+      <!-- [모드 2] 단어 첫 소리 맞추기 -->
+      <div id="word-question-view" class="hidden py-2">
+        <p class="text-slate-600 font-bold mb-2">이 단어의 첫 알파벳 소리는 무엇일까요?</p>
+        <div id="word-display" class="text-4xl font-black tracking-widest text-indigo-600 my-3">
+          _ p p l e
+        </div>
+        <p id="word-meaning" class="text-sm text-slate-500 font-bold">🍎 사과</p>
+      </div>
+
+    </div>
+
+    <!-- 보기 선택지 버튼 (4개) -->
+    <div id="options-grid" class="grid grid-cols-2 gap-3 sm:gap-4 mb-6">
+      <!-- JS로 Dynamic 생성 -->
+    </div>
+
+    <!-- 피드백 메시지 영역 -->
+    <div id="feedback-msg" class="h-12 flex items-center justify-center font-extrabold text-lg rounded-xl opacity-0 transition-opacity duration-200">
+      &nbsp;
+    </div>
+
+    <!-- 모달/결과 화면 -->
+    <div id="result-overlay" class="hidden absolute inset-0 bg-white/95 backdrop-blur-sm z-20 flex flex-col items-center justify-center p-6 text-center">
+      <div class="text-6xl mb-4" id="result-emoji">🎉</div>
+      <h2 class="text-3xl font-black text-slate-800 mb-2">게임 완료!</h2>
+      <p class="text-slate-600 font-bold mb-6">최종 점수: <span id="final-score" class="text-indigo-600 text-2xl font-black">0</span>점</p>
+      <button onclick="resetGame()" class="bg-indigo-500 hover:bg-indigo-600 text-white font-black text-lg px-8 py-3 rounded-2xl shadow-lg transition hover:scale-105">
+        다시 도전하기 🔄
+      </button>
+    </div>
+
+  </div>
+
+  <!-- 알파벳 공부방 모달 -->
+  <div id="study-modal" class="hidden fixed inset-0 bg-black/50 z-30 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-2xl w-full max-h-[85vh] flex flex-col p-6 shadow-2xl">
+      <div class="flex justify-between items-center mb-4 pb-2 border-b">
+        <h2 class="text-2xl font-black text-indigo-600">📚 알파벳 대표 발음(음가) 표</h2>
+        <button onclick="closeStudyModal()" class="text-slate-400 hover:text-slate-600 text-2xl font-bold">
+          &times;
+        </button>
+      </div>
+      <div id="study-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 overflow-y-auto p-1">
+        <!-- JS로 알파벳 목록 삽입 -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 알파벳 및 음가, 대표 단어 데이터 (A-Z)
+    const alphabetData = [
+      { letter: 'A', sound: '애', word: 'Apple', hint: '🍎 사과', fill: '_pple' },
+      { letter: 'B', sound: '브', word: 'Banana', hint: '🍌 바나나', fill: '_anana' },
+      { letter: 'C', sound: '크', word: 'Cat', hint: '🐱 고양이', fill: '_at' },
+      { letter: 'D', sound: '드', word: 'Dog', hint: '🐶 강아지', fill: '_og' },
+      { letter: 'E', sound: '에', word: 'Elephant', hint: '🐘 코끼리', fill: '_lephant' },
+      { letter: 'F', sound: '프', word: 'Fish', hint: '🐟 물고기', fill: '_ish' },
+      { letter: 'G', sound: '그', word: 'Gorilla', hint: '🦍 고릴라', fill: '_orilla' },
+      { letter: 'H', sound: '흐', word: 'Hat', hint: '🎩 모자', fill: '_at' },
+      { letter: 'I', sound: '이', word: 'Igloo', hint: '🛖 이글루', fill: '_gloo' },
+      { letter: 'J', sound: '쥐', word: 'Juice', hint: '🧃 주스', fill: '_uice' },
+      { letter: 'K', sound: '크', word: 'Kangaroo', hint: '🦘 캥거루', fill: '_angaroo' },
+      { letter: 'L', sound: '르', word: 'Lion', hint: '🦁 사자', fill: '_ion' },
+      { letter: 'M', sound: '므', word: 'Monkey', hint: '🐒 원숭이', fill: '_onkey' },
+      { letter: 'N', sound: '느', word: 'Nest', hint: '🪹 둥지', fill: '_est' },
+      { letter: 'O', sound: '아', word: 'Octopus', hint: '🐙 문어', fill: '_ctopus' },
+      { letter: 'P', sound: '프', word: 'Pig', hint: '🐷 돼지', fill: '_ig' },
+      { letter: 'Q', sound: '쿠', word: 'Queen', hint: '👸 여왕', fill: '_ueen' },
+      { letter: 'R', sound: '르', word: 'Rabbit', hint: '🐰 토끼', fill: '_abbit' },
+      { letter: 'S', sound: '스', word: 'Sun', hint: '☀️ 태양', fill: '_un' },
+      { letter: 'T', sound: '트', word: 'Tiger', hint: '🐯 호랑이', fill: '_iger' },
+      { letter: 'U', sound: '어', word: 'Umbrella', hint: '☂️ 우산', fill: '_mbrella' },
+      { letter: 'V', sound: '브', word: 'Violin', hint: '🎻 바이올린', fill: '_iolin' },
+      { letter: 'W', sound: '우', word: 'Water', hint: '💧 물', fill: '_ater' },
+      { letter: 'X', sound: '크스', word: 'Xylophone', hint: '🎼 실로폰', fill: '_ylophone' },
+      { letter: 'Y', sound: '이', word: 'Yo-yo', hint: '🪀 요요', fill: '_o-yo' },
+      { letter: 'Z', sound: '즈', word: 'Zebra', hint: '🦓 얼룩말', fill: '_ebra' }
+    ];
+
+    // 상태 변수
+    let currentMode = 'sound'; // 'sound' | 'word'
+    let currentQuestion = null;
+    let score = 0;
+    let streak = 0;
+    let remainingRounds = 10;
+    let isAnswering = false;
+
+    // TTS 음성 재생 (Web Speech API)
+    function speak(text, rate = 0.8) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel(); // 이전 재생 취소
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        utterance.rate = rate; // 어린이/학습용을 위해 약간 천천히
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    // 초기화
+    function init() {
+      setupStudyModal();
+      resetGame();
+    }
+
+    function resetGame() {
+      score = 0;
+      streak = 0;
+      remainingRounds = 10;
+      document.getElementById('result-overlay').classList.add('hidden');
+      updateUI();
+      nextQuestion();
+    }
+
+    function updateUI() {
+      document.getElementById('score-val').innerText = score;
+      document.getElementById('streak-val').innerText = `🔥 ${streak}`;
+      document.getElementById('round-val').innerText = remainingRounds;
+    }
+
+    // 모드 변경
+    function setMode(mode) {
+      if (currentMode === mode) return;
+      currentMode = mode;
+      
+      const soundBtn = document.getElementById('mode-sound-btn');
+      const wordBtn = document.getElementById('mode-word-btn');
+      const soundView = document.getElementById('sound-question-view');
+      const wordView = document.getElementById('word-question-view');
+
+      if (mode === 'sound') {
+        soundBtn.className = "flex-1 py-2 rounded-xl font-extrabold text-sm transition bg-white text-indigo-600 shadow-sm";
+        wordBtn.className = "flex-1 py-2 rounded-xl font-extrabold text-sm transition text-slate-500 hover:text-slate-700";
+        soundView.classList.remove('hidden');
+        wordView.classList.add('hidden');
+      } else {
+        wordBtn.className = "flex-1 py-2 rounded-xl font-extrabold text-sm transition bg-white text-indigo-600 shadow-sm";
+        soundBtn.className = "flex-1 py-2 rounded-xl font-extrabold text-sm transition text-slate-500 hover:text-slate-700";
+        wordView.classList.remove('hidden');
+        soundView.classList.add('hidden');
+      }
+
+      nextQuestion();
+    }
+
+    // 다음 문제 생성
+    function nextQuestion() {
+      if (remainingRounds <= 0) {
+        endGame();
+        return;
+      }
+
+      isAnswering = false;
+      const feedback = document.getElementById('feedback-msg');
+      feedback.style.opacity = '0';
+
+      // 카드 애니메이션 재적용
+      const card = document.getElementById('quiz-card');
+      card.classList.remove('pop-in');
+      void card.offsetWidth; // reflow
+      card.classList.add('pop-in');
+
+      // 무작위 문제 선택
+      const randomIndex = Math.floor(Math.random() * alphabetData.length);
+      currentQuestion = alphabetData[randomIndex];
+
+      // 화면 세팅
+      if (currentMode === 'sound') {
+        setTimeout(() => playCurrentQuestionSound(), 300);
+      } else {
+        document.getElementById('word-display').innerText = currentQuestion.fill;
+        document.getElementById('word-meaning').innerText = currentQuestion.hint;
+        speak(currentQuestion.word);
+      }
+
+      // 오답 보기 3개 추출
+      const incorrects = alphabetData.filter(item => item.letter !== currentQuestion.letter);
+      const shuffledIncorrects = incorrects.sort(() => 0.5 - Math.random()).slice(0, 3);
+
+      // 전체 보기 4개 섞기
+      const options = [currentQuestion, ...shuffledIncorrects].sort(() => 0.5 - Math.random());
+
+      // 보기 버튼 생성
+      const optionsGrid = document.getElementById('options-grid');
+      optionsGrid.innerHTML = '';
+
+      options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.onclick = () => handleAnswer(opt, btn);
+        btn.className = "bg-white hover:bg-indigo-50 border-2 border-slate-200 hover:border-indigo-300 text-slate-700 font-black text-2xl py-4 rounded-2xl shadow-sm hover:shadow transition flex items-center justify-center gap-2";
+        btn.innerHTML = `
+          <span>${opt.letter}</span>
+          <span class="text-sm font-bold text-slate-400">(${opt.sound})</span>
+        `;
+        optionsGrid.appendChild(btn);
+      });
+    }
+
+    // 문제 소리 재생
+    function playCurrentQuestionSound() {
+      if (currentQuestion) {
+        // 알파벳 발음 음가 유도를 위한 TTS
+        speak(currentQuestion.letter);
+      }
+    }
+
+    // 정답 확인
+    function handleAnswer(selected, buttonEl) {
+      if (isAnswering) return;
+      isAnswering = true;
+
+      const feedback = document.getElementById('feedback-msg');
+      const isCorrect = selected.letter === currentQuestion.letter;
+
+      // 정답 선택지 표시
+      const buttons = document.querySelectorAll('#options-grid button');
+      buttons.forEach(btn => btn.disabled = true);
+
+      if (isCorrect) {
+        score += 10 + (streak * 2); // 연속 정답 보너스
+        streak++;
+        buttonEl.className = "bg-emerald-500 text-white font-black text-2xl py-4 rounded-2xl shadow-md border-2 border-emerald-600 scale-105 transition flex items-center justify-center gap-2";
+        feedback.innerText = "✨ 정답입니다! Great job!";
+        feedback.className = "h-12 flex items-center justify-center font-extrabold text-lg rounded-xl bg-emerald-100 text-emerald-700 opacity-100";
+        speak(`Correct! ${currentQuestion.letter}, ${currentQuestion.word}`);
+      } else {
+        streak = 0;
+        buttonEl.className = "bg-rose-500 text-white font-black text-2xl py-4 rounded-2xl shadow-md border-2 border-rose-600 transition flex items-center justify-center gap-2";
+        feedback.innerText = `💡 아쉬워요! 정답은 ${currentQuestion.letter}입니다.`;
+        feedback.className = "h-12 flex items-center justify-center font-extrabold text-lg rounded-xl bg-rose-100 text-rose-700 opacity-100";
+        speak(`Try again!`);
+      }
+
+      remainingRounds--;
+      updateUI();
+
+      setTimeout(() => {
+        nextQuestion();
+      }, 1600);
+    }
+
+    // 게임 종료
+    function endGame() {
+      document.getElementById('final-score').innerText = score;
+      const emojiEl = document.getElementById('result-emoji');
+      
+      if (score >= 100) emojiEl.innerText = "🏆";
+      else if (score >= 60) emojiEl.innerText = "🌟";
+      else emojiEl.innerText = "👍";
+
+      document.getElementById('result-overlay').classList.remove('hidden');
+    }
+
+    // 공부방 모달 관련
+    function setupStudyModal() {
+      const grid = document.getElementById('study-grid');
+      grid.innerHTML = '';
+      
+      alphabetData.forEach(item => {
+        const card = document.createElement('div');
+        card.onclick = () => speak(`${item.letter}, ${item.word}`);
+        card.className = "bg-amber-50/70 hover:bg-amber-100 p-3 rounded-2xl border border-amber-200 text-center cursor-pointer transition active:scale-95";
+        card.innerHTML = `
+          <div class="text-2xl font-black text-indigo-600">${item.letter}</div>
+          <div class="text-xs font-bold text-slate-500">소리: <span class="text-amber-600 font-extrabold">${item.sound}</span></div>
+          <div class="text-sm font-extrabold text-slate-700 mt-1">${item.hint}</div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function openStudyModal() {
+      document.getElementById('study-modal').classList.remove('hidden');
+    }
+
+    function closeStudyModal() {
+      document.getElementById('study-modal').classList.add('hidden');
+    }
+
+    // 실행 시작
+    window.onload = init;
+  </script>
+</body>
+</html>
